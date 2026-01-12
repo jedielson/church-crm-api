@@ -1,0 +1,109 @@
+networks:
+    church-cms-net:
+        driver: bridge
+
+services:
+#  service:
+#      container_name: church-cms
+#      image: church-cms:${TAG}
+#      build:
+#        context: .
+#        dockerfile: Terraform.Dockerfile
+#        args:
+#          - RELEASE_VERSION=${RELEASE_VERSION}
+#      ports:
+#        - "5002:5001"
+#      networks:
+#        - church-cms-net
+#
+#  integration-tests:
+#      container_name: church-cms-integration-tests
+#      image: church-cms-integration-tests:${TAG}
+#      build:
+#        context: .
+#        dockerfile: Terraform.Dockerfile
+#        target: integration-tests
+#        args:
+#          - RELEASE_VERSION=${RELEASE_VERSION}
+#      # env_file: .env
+#      networks:
+#        - church-cms-net
+#
+#  unit-tests:
+#      container_name: church-cms-unit-tests
+#      image: church-cms-unit-tests:${TAG}
+#      build:
+#        context: .
+#        dockerfile: Terraform.Dockerfile
+#        target:  unit-tests
+#        args:
+#          - RELEASE_VERSION=${RELEASE_VERSION}
+#      # env_file: .env
+#      networks:
+#        - church-cms-net
+
+  database:
+    image: postgres:alpine
+    container_name: church-cms-database
+    restart: on-failure
+    ports:
+        - "5432:5432"
+    environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_MULTIPLE_DATABASES: church,keycloak
+        POSTGRES_DB: postgres
+    volumes:
+        - ./infra/pg:/docker-entrypoint-initdb.d
+    networks:
+        - church-cms-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  
+  keycloak:
+    container_name: keycloak
+    image: church-cms-keycloak
+    depends_on:
+      database:
+        condition: service_healthy
+    build:
+      context: infra/keycloak
+      dockerfile: Dockerfile
+    command: start-dev
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://database/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: true
+    networks:
+      - church-cms-net
+    healthcheck:
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  terraform:
+    container_name: church-cms-terraform
+    build:
+      context: infra/keycloak
+      dockerfile: Terraform.Dockerfile
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+    restart: on-failure:5
+    networks:
+      - church-cms-net
