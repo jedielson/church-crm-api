@@ -1,50 +1,55 @@
 networks:
-    church-cms-net:
+    church-crm-net:
         driver: bridge
 
 services:
 #  service:
-#      container_name: church-cms
-#      image: church-cms:${TAG}
+#      container_name: church-crm
+#      image: church-crm:${TAG}
 #      build:
 #        context: .
-#        dockerfile: Terraform.Dockerfile
+#        dockerfile: Dockerfile
 #        args:
 #          - RELEASE_VERSION=${RELEASE_VERSION}
 #      ports:
 #        - "5002:5001"
 #      networks:
-#        - church-cms-net
-#
-#  integration-tests:
-#      container_name: church-cms-integration-tests
-#      image: church-cms-integration-tests:${TAG}
-#      build:
-#        context: .
-#        dockerfile: Terraform.Dockerfile
-#        target: integration-tests
-#        args:
-#          - RELEASE_VERSION=${RELEASE_VERSION}
-#      # env_file: .env
-#      networks:
-#        - church-cms-net
-#
+#        - church-crm-net
+
+  integration-tests:
+      container_name: church-crm-integration-tests
+      image: church-crm-integration-tests:${TAG}
+      build:
+        context: .
+        dockerfile: Dockerfile
+        target: test
+        args:
+          - RELEASE_VERSION=${RELEASE_VERSION}
+      # env_file: .env
+      depends_on:
+        keycloak:
+          condition: service_healthy
+        database:
+          condition: service_healthy
+      networks:
+        - church-crm-net
+
 #  unit-tests:
-#      container_name: church-cms-unit-tests
-#      image: church-cms-unit-tests:${TAG}
+#      container_name: church-crm-unit-tests
+#      image: church-crm-unit-tests:${TAG}
 #      build:
 #        context: .
-#        dockerfile: Terraform.Dockerfile
+#        dockerfile: Dockerfile
 #        target:  unit-tests
 #        args:
 #          - RELEASE_VERSION=${RELEASE_VERSION}
 #      # env_file: .env
 #      networks:
-#        - church-cms-net
+#        - church-crm-net
 
   database:
     image: postgres:alpine
-    container_name: church-cms-database
+    container_name: church-crm-database
     restart: on-failure
     ports:
         - "5432:5432"
@@ -56,7 +61,7 @@ services:
     volumes:
         - ./infra/pg:/docker-entrypoint-initdb.d
     networks:
-        - church-cms-net
+        - church-crm-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -66,7 +71,7 @@ services:
   
   keycloak:
     container_name: keycloak
-    image: church-cms-keycloak
+    image: church-crm-keycloak
     depends_on:
       database:
         condition: service_healthy
@@ -86,7 +91,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HEALTH_ENABLED: true
     networks:
-      - church-cms-net
+      - church-crm-net
     healthcheck:
       test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;" ]
       interval: 10s
@@ -95,7 +100,7 @@ services:
       start_period: 10s
 
   terraform:
-    container_name: church-cms-terraform
+    container_name: church-crm-terraform
     build:
       context: infra/keycloak
       dockerfile: Terraform.Dockerfile
@@ -106,4 +111,4 @@ services:
         condition: service_healthy
     restart: on-failure:5
     networks:
-      - church-cms-net
+      - church-crm-net

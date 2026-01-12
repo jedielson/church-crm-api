@@ -1,0 +1,200 @@
+###
+### Church CMS API - HTTP Requests
+### Use with IntelliJ IDEA HTTP Client or VS Code REST Client extension
+###
+
+### ===== CONFIGURATION =====
+### Development (Local)
+@keycloak_url = http://localhost:8080
+@api_url = http://localhost:8081
+@realm = church-cms
+@client_id = church-cms-ui
+@client_secret = 27074815-E8EF-469A-A183-DE11B802F90B
+@username = a@b.com
+@password = 12345
+
+### Production (Uncomment and modify for production)
+# @keycloak_url = https://keycloak.yourdomain.com
+# @api_url = https://api.yourdomain.com
+
+### ===== API DOCUMENTATION =====
+
+### Swagger UI
+### Open in browser: http://localhost:8081/swagger-ui.html
+GET {{api_url}}/swagger-ui.html
+
+### OpenAPI Spec (JSON)
+GET {{api_url}}/api-docs
+
+### ===== AUTHENTICATION =====
+
+### 1. Get Access Token from Keycloak
+# @name getToken
+POST {{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{client_id}}
+&client_secret={{client_secret}}
+&username={{username}}
+&password={{password}}
+&scope=email
+
+> {% client.global.set("access_token", response.body.access_token);  %}
+
+### ===== CHURCH ENDPOINTS =====
+
+### 2. Create Church (Requires ADMIN role)
+### This will:
+### - Create a church in the database
+### - Publish a ChurchCreated event
+### - Create a Keycloak user with the email/userName provided
+### - Add the user to the "USERS" group
+### - Set temporary password "password" (must be changed on first login)
+### - Set organization-id attribute to the church ID
+# @name createChurch
+POST {{api_url}}/churches
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "First Baptist Church",
+  "hostName": "first-baptist.church",
+  "userName": "john.doe",
+  "email": "john.doe@first-baptist.church",
+  "address": {
+    "line1": "123 Main Street",
+    "line2": "Suite 100",
+    "city": "Springfield",
+    "postalCode": "62701"
+  }
+}
+
+### 2b. Create Another Church
+POST {{api_url}}/churches
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "Communitys Bible Church",
+  "hostName": "community-bible.church",
+  "userName": "jane.smith",
+  "email": "jane.smith@community-bible.church",
+  "address": {
+    "line1": "456 Oak Avenue",
+    "line2": "",
+    "city": "Austin",
+    "postalCode": "78701"
+  }
+}
+
+### 3. Get Church by ID (User can only access their own church)
+### IMPORTANT: Replace the UUID with your church ID from the database
+### The user's organization_id claim must match the church ID
+### To test:
+### 1. Get token as john.doe@first-baptist.church (created by step 2)
+### 2. Use the church ID from step 2
+### 3. Should return 200 with church details
+###
+### NOTE: If you get 401, the organization_id claim is missing from JWT.
+### This happens because Keycloak user attributes weren't set by Terraform.
+### Workaround: Manually set the attribute via Keycloak Admin Console or API
+GET {{api_url}}/churches/61152542-52c1-4ec5-93a4-7d48fe26234c
+Authorization: Bearer {{access_token}}
+
+### 4. Get Church by ID - Testing with john.doe user
+### First get token for john.doe user
+# @name getTokenJohnDoe
+POST {{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{client_id}}
+&client_secret={{client_secret}}
+&username=john.doe@first-baptist.church
+&password=password
+&scope=email
+
+> {% client.global.set("john_doe_token", response.body.access_token);  %}
+
+### 4b. John.doe accessing his own church (Should return 200)
+### IMPORTANT: Replace UUID with the church ID from step 2
+GET {{api_url}}/churches/YOUR-CHURCH-ID-HERE
+Authorization: Bearer {{john_doe_token}}
+
+### 4c. John.doe trying to access another church (Should return 404)
+### This returns 404 instead of 403 to prevent information leakage
+GET {{api_url}}/churches/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{john_doe_token}}
+
+### 4d. Access church without token (Should return 401)
+GET {{api_url}}/churches/61152542-52c1-4ec5-93a4-7d48fe26234c
+
+### 4e. Access church with invalid token (Should return 401)
+GET {{api_url}}/churches/61152542-52c1-4ec5-93a4-7d48fe26234c
+Authorization: Bearer invalid.token.here
+
+### ===== PRODUCT ENDPOINTS =====
+
+### 5. Create Product (Requires USER role)
+POST {{api_url}}/products
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "Test Product from HTTP Client",
+  "description": "Created using .http request file",
+  "price": 149.99,
+  "stockQuantity": 25,
+  "active": true
+}
+
+### 6. Create Another Product
+POST {{api_url}}/products
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "name": "Premium Widget",
+  "description": "High-quality widget for testing",
+  "price": 299.99,
+  "stockQuantity": 100,
+  "active": true
+}
+
+### ===== ERROR SCENARIOS =====
+
+### 7. Test Unauthorized Access (No Token) - Should return 401
+POST {{api_url}}/products
+Content-Type: application/json
+
+{
+  "name": "Should Fail - No Token",
+  "description": "This should return 401 Unauthorized",
+  "price": 99.99,
+  "stockQuantity": 10,
+  "active": true
+}
+
+### 8. Test Invalid Token - Should return 401
+POST {{api_url}}/products
+Content-Type: application/json
+Authorization: Bearer invalid.token.here
+
+{
+  "name": "Should Fail - Invalid Token",
+  "description": "This should return 401 Unauthorized",
+  "price": 99.99,
+  "stockQuantity": 10,
+  "active": true
+}
+
+### ===== KEYCLOAK ADMIN =====
+
+### 9. Get Keycloak Realm Configuration
+GET {{keycloak_url}}/realms/{{realm}}/.well-known/openid-configuration
+
+### 10. Get Keycloak JWK Set (Public Keys)
+GET {{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/certs
+
+###

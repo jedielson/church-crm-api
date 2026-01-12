@@ -17,11 +17,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/church-cms}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/church-cms}
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/church
+    url: jdbc:postgresql://database:5432/church
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -41,7 +41,7 @@ spring:
 
 keycloak:
   admin:
-    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
+    server-url: ${KEYCLOAK_SERVER_URL:http://keycloak:8080}
     realm: ${KEYCLOAK_REALM:church-cms}
     client-id: ${KEYCLOAK_CLIENT_ID:church-cms-api}
     client-secret: ${KEYCLOAK_CLIENT_SECRET:0D707122-4A11-4889-869B-4752CAEDECCD}

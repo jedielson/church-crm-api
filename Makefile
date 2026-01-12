@@ -5,4 +5,4 @@ docker-up: docker-down
 
 docker-down:
 	@docker compose down
-	@docker image ls | grep church-cms-terraform | awk '{print $$3}' | xargs docker rmi -f || true
+	@docker image ls | grep church-crm | awk '{print $$3}' | xargs docker rmi -f || true
