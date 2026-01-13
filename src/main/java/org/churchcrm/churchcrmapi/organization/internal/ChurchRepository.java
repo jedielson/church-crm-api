@@ -7,4 +7,6 @@ import java.util.UUID;
 
 @Repository
 interface ChurchRepository extends JpaRepository<Church, UUID> {
+
+    boolean existsByHostName(String hostName);
 }

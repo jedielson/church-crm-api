@@ -41,7 +41,7 @@ public class Congregation {
 
     public static Congregation createMain(Church church, Address address) {
         var congregation = new Congregation();
-        congregation.setName("Main Congregation");
+        congregation.setName(church.getName());
         congregation.setIsMain(true);
         congregation.setAddress(address);
         congregation.setChurch(church);

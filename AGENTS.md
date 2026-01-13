@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # AGENTS.md - AI Code Generation Guide
 
 **Purpose**: This file helps AI agents generate code that follows the Church CRM architectural patterns and rules.
@@ -7,13 +26,54 @@
 
 ---
 
+## 🛠️ Serena MCP Tools (REQUIRED)
+
+**All file operations MUST use Serena MCP tools only.**
+
+### Essential Serena Tools
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `serena_read_file` | Read file contents | Read existing code |
+| `serena_create_text_file` | Create new files | New entities, DTOs, etc. |
+| `serena_replace_content` | Edit existing files | Modify templates |
+| `serena_find_file` | Find files by pattern | Locate existing implementations |
+| `serena_search_for_pattern` | Search code | Find patterns across codebase |
+| `serena_execute_shell_command` | Run commands | Compile, test, Maven commands |
+| `serena_get_symbols_overview` | Analyze file structure | Understand code layout |
+
+### Usage Rules
+- ✅ **ALWAYS** use `serena_read_file` before editing files
+- ✅ **ALWAYS** use `serena_create_text_file` for new files
+- ✅ **ALWAYS** use `serena_replace_content` for existing file edits
+- ✅ **ALWAYS** use `serena_execute_shell_command` for Maven commands
+- ❌ **NEVER** use legacy tools: Read, Write, Edit, Glob, Grep, Bash
+
+### Example Workflow
+```bash
+# Find existing entity pattern
+serena_find_file "*Entity.java" "src"
+
+# Read existing entity for reference
+serena_read_file "src/main/java/.../Church.java"
+
+# Create new entity using template
+serena_create_text_file "src/main/java/.../Product.java" "entity_template_content"
+
+# Compile and test
+serena_execute_shell_command "./mvnw clean compile"
+serena_execute_shell_command "./mvnw test -Dtest=ArchitectureTest"
+```
+
+---
+
 ## 🤖 How to Use This File
 
 When generating code for this project, **always**:
 1. Read this file first to understand patterns
-2. Follow the templates provided
-3. Run ArchUnit tests after generating code
-4. Ensure all 8 ArchUnit rules pass
+2. **Use Serena MCP tools ONLY** - all file operations must use Serena tools
+3. Follow the templates provided
+4. Run ArchUnit tests after generating code
+5. Ensure all 8 ArchUnit rules pass
 
 ---
 
@@ -119,10 +179,12 @@ public record {Entity}Dto(
 /**
  * DTO for creating {Entity}.
  * No id or audit fields (server-generated).
+ * Address fields are optional - provide null for no address.
  */
 public record Create{Entity}Dto(
-    String name
-    // ... required fields only
+    @NotBlank String name,
+    // ... other required fields
+    AddressDto address  // Optional - null allowed
 ) {}
 
 /**
@@ -139,6 +201,8 @@ public record Update{Entity}Dto(
 - ✅ Immutable `record` types
 - ✅ Include audit fields in response DTOs
 - ✅ No id/audit fields in Create DTOs
+- ✅ Address fields are optional - provide null for no address
+- ✅ Use @NotBlank, @Size, @Email for validation
 - ✅ Package: root module package (public API)
 
 ---
@@ -216,6 +280,9 @@ interface {Entity}Repository extends JpaRepository<{Entity}, UUID> {
 - ✅ Package: `{module}.internal`
 - ✅ Use Spring Data JPA query methods
 
+**File Creation**:
+Use `serena_create_text_file` with the template content, replacing placeholders with actual names.
+
 ---
 
 ### Template 5: Creating a Service
@@ -268,7 +335,7 @@ class {Entity}Service {
      */
     @Transactional
     public {Entity}Dto create(Create{Entity}Dto dto, UUID organizationId) {
-        // Validation
+        // Validation - check uniqueness constraints
         if (repository.existsByName(dto.name())) {
             throw new ConflictException(
                 "Entity with this name already exists",
@@ -276,15 +343,15 @@ class {Entity}Service {
                 dto.name()
             );
         }
-        
+
         // Create entity
         {Entity} entity = mapper.toEntity(dto);
         entity.setOrganizationId(organizationId);
-        
+
         entity = repository.save(entity);
-        
+
         log.info("Created {Entity}: id={}, name={}", entity.getId(), entity.getName());
-        
+
         return mapper.toDto(entity);
     }
 
@@ -313,6 +380,7 @@ class {Entity}Service {
 - ✅ `@Transactional` on write methods
 - ✅ Always check `organizationId` for security
 - ✅ Throw `NotFoundException` (404) for unauthorized, not `ForbiddenException` (403)
+- ✅ Check uniqueness constraints before saving (hostname, name, etc.)
 - ✅ Log important operations
 - ✅ Package: `{module}.internal`
 
@@ -420,7 +488,7 @@ public class {Entity}Controller {
         )
     })
     public ResponseEntity<{Entity}Dto> create(
-            @RequestBody Create{Entity}Dto dto,
+            @RequestBody @Valid Create{Entity}Dto dto,
             @OrganizationId UUID organizationId) {
         
         {Entity}Dto created = service.create(dto, organizationId);
@@ -472,6 +540,7 @@ public class {Entity}Controller {
 **Key Rules**:
 - ✅ All methods return `ResponseEntity<T>` (Rule #8)
 - ✅ `@OrganizationId UUID organizationId` parameters (Rule #7)
+- ✅ `@Valid` annotation on request bodies for validation
 - ✅ OpenAPI annotations for documentation
 - ✅ `@PreAuthorize` for role-based access
 - ✅ Package: `{module}.internal`
@@ -543,13 +612,15 @@ public record {Entity}{Action}(
 @Service
 class {Entity}Service {
     private final ApplicationEventPublisher events;
-    
+    private final {Entity}Mapper mapper;
+
     @Transactional
     public void create(Create{Entity}Dto dto) {
         {Entity} entity = repository.save(entity);
-        
-        // Publish event
-        events.publishEvent(new {Entity}Created(entity.getId(), entity.getName()));
+
+        // Publish event using MapStruct mapper
+        var event = mapper.to{Entity}Created(entity, dto);
+        events.publishEvent(event);
     }
 }
 ```
@@ -850,17 +921,41 @@ if (!entity.getOrganizationId().equals(organizationId)) {
 
 ---
 
+## 🗄️ Database Constraints for Business Rules
+
+When implementing business rules that must be enforced at the database level:
+
+- **Uniqueness constraints**: Add UNIQUE indexes for fields like hostname
+- **Partial indexes**: Use WHERE clauses for conditional uniqueness (e.g., one main congregation per church)
+- **Foreign keys**: Always include CASCADE DELETE for proper relationship management
+- **Check constraints**: For complex business rules that can be expressed in SQL
+
+Example partial unique index for one main congregation per church:
+```sql
+CREATE UNIQUE INDEX idx_congregations_main_per_church
+ON organization.congregations(church_id)
+WHERE is_main = true;
+```
+
+---
+
 ## 🔄 Code Generation Workflow
 
 1. **Read AGENTS.md** (this file)
 2. **Choose appropriate template** from above
 3. **Replace placeholders** with actual names
-4. **Generate code** following patterns
-5. **Run compilation**: `./mvnw clean compile`
-6. **Run ArchUnit tests**: `./mvnw test -Dtest=ArchitectureTest`
-7. **Fix violations** if any
+4. **Generate code** using Serena MCP tools only:
+   - `serena_create_text_file` for new files
+   - `serena_replace_content` for existing file edits
+   - `serena_read_file` to read files
+   - `serena_find_file` to find files
+   - `serena_search_for_pattern` to search code
+   - `serena_execute_shell_command` for compilation/testing
+5. **Run compilation**: `serena_execute_shell_command "./mvnw clean compile"`
+6. **Run ArchUnit tests**: `serena_execute_shell_command "./mvnw test -Dtest=ArchitectureTest"`
+7. **Fix violations** if any using Serena tools
 8. **Verify all 8 rules pass**
-9. **Run full test suite**: `./mvnw test`
+9. **Run full test suite**: `serena_execute_shell_command "./mvnw test"`
 10. **Code review** and merge
 
 ---
@@ -910,7 +1005,7 @@ Common placeholders used in templates:
 
 ### Problem: MapStruct not generating implementation
 
-**Solution**: Run `./mvnw clean compile` to trigger annotation processing.
+**Solution**: Run `serena_execute_shell_command "./mvnw clean compile"` to trigger annotation processing.
 
 ### Problem: Audit fields not populated
 
@@ -919,6 +1014,16 @@ Common placeholders used in templates:
 ### Problem: Controller method returns wrong status
 
 **Solution**: Use explicit `ResponseEntity.status()` or helper methods like `ResponseEntity.ok()`.
+
+### Problem: Using legacy file tools
+
+**Solution**: Always use Serena MCP tools instead of legacy tools:
+- Use `serena_read_file` instead of `read`
+- Use `serena_create_text_file` instead of `write`
+- Use `serena_replace_content` instead of `edit`
+- Use `serena_search_for_pattern` instead of `grep` or `rg`
+- Use `serena_find_file` instead of `glob`
+- Use `serena_execute_shell_command` instead of `bash`
 
 ---
 

@@ -1,6 +1,7 @@
 package org.churchcrm.churchcrmapi.organization.internal;
 
 import org.churchcrm.churchcrmapi.organization.AddressDto;
+import org.churchcrm.churchcrmapi.organization.ChurchCreated;
 import org.churchcrm.churchcrmapi.organization.ChurchDto;
 import org.churchcrm.churchcrmapi.organization.CreateChurchDto;
 import org.mapstruct.Mapper;
@@ -23,6 +24,13 @@ interface ChurchMapper {
     @Mapping(target = "updatedBy", source = "audit.updatedBy")
     @Mapping(target = "updatedAt", source = "audit.updatedAt")
     ChurchDto toDto(Church church);
+
+    @Mapping(target = "churchId", source = "church.id")
+    @Mapping(target = "name", source = "church.name")
+    @Mapping(target = "userName", source = "dto.userName")
+    @Mapping(target = "email", source = "dto.email")
+    @Mapping(target = "fullName", source = "dto.fullName")
+    ChurchCreated toChurchCreated(Church church, CreateChurchDto dto);
 
     AddressDto toAddressDto(Address address);
 

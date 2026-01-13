@@ -2,6 +2,7 @@ package org.churchcrm.churchcrmapi.organization.internal;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.churchcrm.churchcrmapi.crosscutting.web.ConflictException;
 import org.churchcrm.churchcrmapi.organization.ChurchCreated;
 import org.churchcrm.churchcrmapi.organization.ChurchDto;
 import org.churchcrm.churchcrmapi.organization.CreateChurchDto;
@@ -21,22 +22,23 @@ class ChurchService {
     private final ChurchRepository repository;
 
     @Transactional
-    public void createChurch(CreateChurchDto dto) {
+    public ChurchDto createChurch(CreateChurchDto dto) {
+        // Check hostname uniqueness
+        if (repository.existsByHostName(dto.hostName())) {
+            throw new ConflictException("Church with this hostname already exists", "hostname", dto.hostName());
+        }
+
         var church = Church.create(dto, churchMapper);
         church = this.repository.save(church);
         log.info("Church created: {} with id: {}", church.getName(), church.getId());
 
         // Publish ChurchCreated event
-        var event = new ChurchCreated(
-                church.getId(),
-                church.getName(),
-                dto.userName(),
-                dto.email(),
-                "" // fullName - not in DTO yet
-        );
+        var event = churchMapper.toChurchCreated(church, dto);
         
         eventPublisher.publishEvent(event);
         log.info("ChurchCreated event published for church: {} by user: {}", church.getName(), dto.userName());
+
+        return churchMapper.toDto(church);
     }
 
     @Transactional(readOnly = true)

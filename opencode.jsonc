@@ -10,7 +10,7 @@
         "serena",
         "start-mcp-server",
         "--project",
-        "${workspaceFolder}"
+        "."
       ],
       "enabled": true
     }
