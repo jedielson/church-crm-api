@@ -36,3 +36,6 @@ CREATE INDEX idx_congregations_church_id ON organization.congregations(church_id
 CREATE INDEX idx_congregations_is_main ON organization.congregations(is_main);
 CREATE INDEX idx_churches_created_at ON organization.churches(created_at);
 CREATE INDEX idx_congregations_created_at ON organization.congregations(created_at);
+
+-- Business rule: Each church can have at most one main congregation
+CREATE UNIQUE INDEX idx_congregations_main_per_church ON organization.congregations(church_id) WHERE is_main = true;

@@ -8,12 +8,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.churchcrm.churchcrmapi.crosscutting.web.OrganizationId;
 import org.churchcrm.churchcrmapi.organization.ChurchDto;
 import org.churchcrm.churchcrmapi.organization.CreateChurchDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import java.net.URI;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.UUID;
 
@@ -57,20 +61,32 @@ public class OrganizationController {
                     content = @Content
             ),
             @ApiResponse(
+                    responseCode = "409",
+                    description = "Conflict - Church with this hostname already exists",
+                    content = @Content
+            ),
+            @ApiResponse(
                     responseCode = "400",
                     description = "Bad Request - Invalid church data",
                     content = @Content
             )
     })
-    public ResponseEntity<Void> createChurch(
+    public ResponseEntity<ChurchDto> createChurch(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Church details including name, hostname, admin user email, and address",
                     required = true,
                     content = @Content(schema = @Schema(implementation = CreateChurchDto.class))
             )
-            @RequestBody CreateChurchDto church) {
-        churchService.createChurch(church);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+            @RequestBody @Valid CreateChurchDto church) {
+
+        ChurchDto created = churchService.createChurch(church);
+        var location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(created.id())
+                .toUri();
+
+        return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping("/{id}")

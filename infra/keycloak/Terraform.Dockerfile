@@ -11,6 +11,6 @@ COPY script.sh .
 
 RUN chmod +x script.sh
 
-ENV TF_LOG=TRACE
+#ENV TF_LOG=TRACE
 
 ENTRYPOINT ["sh", "script.sh"]
