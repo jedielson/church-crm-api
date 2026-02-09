@@ -20,7 +20,7 @@ public class IdentityService {
         try {
             userService.createUser(event);
         } catch (Exception e) {
-            log.error("Failed to create user in Keycloak for church: {}", event.name(), e);
+            log.error("Failed to create user in Keycloak for church: {}", event.getUserName(), e);
             throw new RuntimeException("Failed to create user in Keycloak", e);
         }
     }

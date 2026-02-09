@@ -1,23 +1,22 @@
-package org.churchcrm.churchcrmapi.organization.internal;
+package org.churchcrm.churchcrmapi.organization.internal.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.churchcrm.churchcrmapi.organization.AddressDto;
 import org.churchcrm.churchcrmapi.organization.ChurchDto;
 import org.churchcrm.churchcrmapi.organization.CreateChurchDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -112,4 +111,31 @@ class ChurchCreationIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(header().doesNotExist("Location"));
     }
+
+//    @Test
+//    void createChurch_ShouldCreateAdminUser_WhenChurchCreated() throws Exception {
+//        // Given
+//        var dto = new CreateChurchDto("Admin Test Church", "admin.church", "adminuser", "admin@example.com", "Admin User", null);
+//
+//        // When/Then
+//        var response = mockMvc.perform(post("/churches")
+//                        .contentType("application/json")
+//                        .content(objectMapper.writeValueAsString(dto)))
+//                .andExpect(status().isCreated())
+//                .andReturn();
+//
+//        // Verify admin user was created in database
+//        String responseBody = response.getResponse().getContentAsString();
+//        ChurchDto createdChurch = objectMapper.readValue(responseBody, ChurchDto.class);
+//
+//        // Verify user exists in database with correct details
+//        var users = userRepository.findByChurchId(createdChurch.id());
+//        assertThat(users).hasSize(1);
+//
+//        var adminUser = users.get(0);
+//        assertThat(adminUser.getId()).isEqualTo("admin@example.com"); // Keycloak user ID is the primary key
+//        assertThat(adminUser.getFullname()).isEqualTo("Admin User");
+//        assertThat(adminUser.getEmail()).isEqualTo("admin@example.com");
+//        assertThat(adminUser.getChurchId()).isEqualTo(createdChurch.id());
+//        }
 }

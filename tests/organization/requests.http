@@ -58,6 +58,7 @@ Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
 {
+  "fullName": "John Doe",
   "name": "First Baptist Church",
   "hostName": "first-baptist.church",
   "userName": "john.doe",
