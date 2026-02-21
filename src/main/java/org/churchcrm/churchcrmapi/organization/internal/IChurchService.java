@@ -3,7 +3,6 @@ package org.churchcrm.churchcrmapi.organization.internal;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.churchcrm.churchcrmapi.crosscutting.web.ConflictException;
-import org.churchcrm.churchcrmapi.organization.ChurchCreated;
 import org.churchcrm.churchcrmapi.organization.ChurchDto;
 import org.churchcrm.churchcrmapi.organization.CreateChurchDto;
 import org.springframework.context.ApplicationEventPublisher;
@@ -12,10 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+public interface IChurchService {
+    ChurchDto createChurch(CreateChurchDto dto);
+    ChurchDto getChurchById(UUID churchId, UUID organizationId);
+}
+
 @AllArgsConstructor
 @Slf4j
 @Service
-class ChurchService {
+class ChurchService implements IChurchService {
 
     private final ApplicationEventPublisher eventPublisher;
     private final ChurchMapper churchMapper;
@@ -34,7 +38,7 @@ class ChurchService {
 
         // Publish ChurchCreated event
         var event = churchMapper.toChurchCreated(church, dto);
-        
+
         eventPublisher.publishEvent(event);
         log.info("ChurchCreated event published for church: {} by user: {}", church.getName(), dto.userName());
 

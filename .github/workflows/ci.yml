@@ -24,7 +24,7 @@ jobs:
           echo "RELEASE_VERSION=test" >> .env
       
       - name: Start dependencies
-        run: make docker-up
+        run: make up
       
       - name: Run integration tests
         run: docker compose up integration-tests --exit-code-from integration-tests

@@ -28,6 +28,7 @@ public class SecurityConfig {
             // Disable security completely for development
             return http
                     .csrf(AbstractHttpConfigurer::disable)
+                    .oauth2ResourceServer(AbstractHttpConfigurer::disable)
                     .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                     .build();
         }
